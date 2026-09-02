@@ -1,0 +1,160 @@
+$ErrorActionPreference = "Stop"
+$projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$outputDirectory = Join-Path $projectRoot "examples"
+$outputPath = Join-Path $outputDirectory "KSA-Accessibility-Test-UI.rbxmx"
+New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+
+$tweenSource = @'
+local TweenService = game:GetService("TweenService")
+local panel = script.Parent
+
+local tween = TweenService:Create(
+	panel,
+	TweenInfo.new(0.4),
+	{ BackgroundTransparency = 0.25 }
+)
+
+tween:Play()
+'@
+
+$escapedTweenSource = [System.Security.SecurityElement]::Escape($tweenSource)
+
+$xml = @"
+<roblox version="4">
+  <External>null</External>
+  <External>nil</External>
+  <Item class="ScreenGui">
+    <Properties>
+      <string name="Name">KSA Accessibility Test UI</string>
+      <bool name="Enabled">true</bool>
+      <bool name="ResetOnSpawn">false</bool>
+    </Properties>
+    <Item class="Frame">
+      <Properties>
+        <string name="Name">TestPanel</string>
+        <Color3 name="BackgroundColor3"><R>0.047</R><G>0.059</G><B>0.086</B></Color3>
+        <float name="BackgroundTransparency">0</float>
+        <UDim2 name="Position"><XS>0</XS><XO>40</XO><YS>0</YS><YO>40</YO></UDim2>
+        <UDim2 name="Size"><XS>0</XS><XO>520</XO><YS>0</YS><YO>390</YO></UDim2>
+        <bool name="Visible">true</bool>
+      </Properties>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">GoodContrastText</string>
+          <string name="Text">PASS EXAMPLE: clear white text on a dark background</string>
+          <Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+          <float name="TextSize">18</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">1</float>
+          <UDim2 name="Position"><XS>0</XS><XO>20</XO><YS>0</YS><YO>20</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>480</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">LowContrastText</string>
+          <string name="Text">HIGH: low-contrast text</string>
+          <Color3 name="TextColor3"><R>0.58</R><G>0.58</G><B>0.58</B></Color3>
+          <Color3 name="BackgroundColor3"><R>0.68</R><G>0.68</G><B>0.68</B></Color3>
+          <float name="TextSize">18</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">0</float>
+          <UDim2 name="Position"><XS>0</XS><XO>20</XO><YS>0</YS><YO>76</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>230</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">ScaledText</string>
+          <string name="Text">MEDIUM: TextScaled</string>
+          <Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+          <float name="TextSize">18</float>
+          <bool name="TextScaled">true</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">1</float>
+          <UDim2 name="Position"><XS>0</XS><XO>270</XO><YS>0</YS><YO>76</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>230</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">SmallText</string>
+          <string name="Text">REVIEW: TextSize 10</string>
+          <Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+          <float name="TextSize">10</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">1</float>
+          <UDim2 name="Position"><XS>0</XS><XO>20</XO><YS>0</YS><YO>132</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>230</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">TransparentText</string>
+          <string name="Text">REVIEW: transparent text</string>
+          <Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+          <float name="TextSize">18</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0.4</float>
+          <float name="BackgroundTransparency">1</float>
+          <UDim2 name="Position"><XS>0</XS><XO>270</XO><YS>0</YS><YO>132</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>230</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">GradientText</string>
+          <string name="Text">REVIEW: gradient background</string>
+          <Color3 name="TextColor3"><R>1</R><G>1</G><B>1</B></Color3>
+          <Color3 name="BackgroundColor3"><R>0.2</R><G>0.2</G><B>0.3</B></Color3>
+          <float name="TextSize">18</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">0</float>
+          <UDim2 name="Position"><XS>0</XS><XO>20</XO><YS>0</YS><YO>188</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>480</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+        <Item class="UIGradient">
+          <Properties>
+            <string name="Name">TestGradient</string>
+            <bool name="Enabled">true</bool>
+          </Properties>
+        </Item>
+      </Item>
+      <Item class="TextLabel">
+        <Properties>
+          <string name="Name">ExpectedResults</string>
+          <string name="Text">Expected: 1 high, 1 medium, 4 review findings</string>
+          <Color3 name="TextColor3"><R>0.75</R><G>0.78</G><B>0.84</B></Color3>
+          <float name="TextSize">16</float>
+          <bool name="TextScaled">false</bool>
+          <float name="TextTransparency">0</float>
+          <float name="BackgroundTransparency">1</float>
+          <UDim2 name="Position"><XS>0</XS><XO>20</XO><YS>0</YS><YO>250</YO></UDim2>
+          <UDim2 name="Size"><XS>0</XS><XO>480</XO><YS>0</YS><YO>42</YO></UDim2>
+          <bool name="Visible">true</bool>
+        </Properties>
+      </Item>
+      <Item class="LocalScript">
+        <Properties>
+          <string name="Name">TweenWithoutReducedMotion</string>
+          <ProtectedString name="Source">$escapedTweenSource</ProtectedString>
+          <bool name="Enabled">true</bool>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+</roblox>
+"@
+
+[System.IO.File]::WriteAllText($outputPath, $xml, [System.Text.UTF8Encoding]::new($false))
+Write-Host "Built $outputPath"

@@ -1,0 +1,7 @@
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+!dist/KSA-Accessibility-Preflight.rbxmx
+!examples/KSA-Accessibility-Test-UI.rbxmx
+.DS_Store

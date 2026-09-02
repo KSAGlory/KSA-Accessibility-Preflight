@@ -1,0 +1,793 @@
+<roblox version="4">
+  <External>null</External>
+  <External>nil</External>
+  <Item class="Folder">
+    <Properties>
+      <string name="Name">KSA Accessibility Preflight</string>
+    </Properties>
+    <Item class="ModuleScript">
+      <Properties>
+        <string name="Name">Contrast</string>
+        <ProtectedString name="Source">--!strict
+
+local Contrast = {}
+
+local function linearize(channel: number): number
+	if channel &lt;= 0.04045 then
+		return channel / 12.92
+	end
+
+	return ((channel + 0.055) / 1.055) ^ 2.4
+end
+
+function Contrast.relativeLuminance(color: Color3): number
+	return 0.2126 * linearize(color.R)
+		+ 0.7152 * linearize(color.G)
+		+ 0.0722 * linearize(color.B)
+end
+
+function Contrast.ratio(first: Color3, second: Color3): number
+	local firstLuminance = Contrast.relativeLuminance(first)
+	local secondLuminance = Contrast.relativeLuminance(second)
+	local lighter = math.max(firstLuminance, secondLuminance)
+	local darker = math.min(firstLuminance, secondLuminance)
+
+	return (lighter + 0.05) / (darker + 0.05)
+end
+
+function Contrast.formatRatio(ratio: number): string
+	return string.format(&quot;%.2f:1&quot;, ratio)
+end
+
+return Contrast
+</ProtectedString>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript">
+      <Properties>
+        <string name="Name">Auditor</string>
+        <ProtectedString name="Source">--!strict
+
+local Contrast = require(script.Parent.Contrast)
+
+export type Severity = &quot;high&quot; | &quot;medium&quot; | &quot;review&quot;
+
+export type Finding = {
+	severity: Severity,
+	category: string,
+	title: string,
+	detail: string,
+	suggestion: string,
+	instance: Instance,
+	path: string,
+	ratio: number?,
+}
+
+export type Report = {
+	findings: { Finding },
+	objectsScanned: number,
+	textObjectsScanned: number,
+	durationSeconds: number,
+}
+
+local Auditor = {}
+
+local severityRank = {
+	high = 1,
+	medium = 2,
+	review = 3,
+}
+
+local function hasEnabledGradient(guiObject: GuiObject): boolean
+	for _, child in guiObject:GetChildren() do
+		if child:IsA(&quot;UIGradient&quot;) and child.Enabled then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function isImageObject(instance: Instance): boolean
+	return instance:IsA(&quot;ImageLabel&quot;) or instance:IsA(&quot;ImageButton&quot;)
+end
+
+local function findSolidBackground(textObject: GuiObject): (Color3?, string?)
+	local current: Instance? = textObject
+
+	while current and current:IsA(&quot;GuiObject&quot;) do
+		local guiObject = current :: GuiObject
+		if isImageObject(guiObject) then
+			return nil, &quot;The nearest visible background is an image.&quot;
+		end
+
+		if hasEnabledGradient(guiObject) then
+			return nil, &quot;The nearest visible background uses a UIGradient.&quot;
+		end
+
+		if guiObject.BackgroundTransparency &lt;= 0.05 then
+			return guiObject.BackgroundColor3, nil
+		end
+
+		if guiObject.BackgroundTransparency &lt; 1 then
+			return nil, &quot;The nearest visible background is translucent.&quot;
+		end
+
+		current = guiObject.Parent
+	end
+
+	return nil, &quot;No opaque GuiObject background was found.&quot;
+end
+
+local function addFinding(findings: { Finding }, finding: Finding)
+	table.insert(findings, finding)
+end
+
+local function inspectTextObject(instance: Instance, findings: { Finding })
+	if not (instance:IsA(&quot;TextLabel&quot;) or instance:IsA(&quot;TextButton&quot;) or instance:IsA(&quot;TextBox&quot;)) then
+		return
+	end
+
+	local textObject = instance :: any
+	local path = instance:GetFullName()
+
+	if textObject.TextTransparency &gt;= 1 or not textObject.Visible then
+		return
+	end
+
+	if textObject.TextScaled then
+		addFinding(findings, {
+			severity = &quot;medium&quot;,
+			category = &quot;Text scaling&quot;,
+			title = &quot;TextScaled ignores preferred text size&quot;,
+			detail = &quot;Roblox does not enlarge TextScaled text when a player chooses a larger PreferredTextSize.&quot;,
+			suggestion = &quot;Use a fixed TextSize with AutomaticSize or TextWrapped where the design allows it.&quot;,
+			instance = instance,
+			path = path,
+			ratio = nil,
+		})
+	elseif textObject.TextSize &lt; 14 then
+		addFinding(findings, {
+			severity = &quot;review&quot;,
+			category = &quot;Text size&quot;,
+			title = &quot;Small text deserves a mobile check&quot;,
+			detail = `This object uses TextSize {textObject.TextSize}. Small text can be difficult to read on phones or with low vision.`,
+			suggestion = &quot;Preview it on a small phone and at Roblox&apos;s Largest preferred text size.&quot;,
+			instance = instance,
+			path = path,
+			ratio = nil,
+		})
+	end
+
+	local backgroundColor, reason = findSolidBackground(textObject)
+	if textObject.TextTransparency &gt; 0.05 then
+		addFinding(findings, {
+			severity = &quot;review&quot;,
+			category = &quot;Color contrast&quot;,
+			title = &quot;Transparent text needs manual review&quot;,
+			detail = &quot;TextTransparency changes the effective text color, so a solid-color ratio could be misleading.&quot;,
+			suggestion = &quot;Check the text in its final context and reduce transparency if readability is weak.&quot;,
+			instance = instance,
+			path = path,
+			ratio = nil,
+		})
+	elseif backgroundColor then
+		local ratio = Contrast.ratio(textObject.TextColor3, backgroundColor)
+		local requiredRatio = if textObject.TextSize &gt;= 24 then 3 else 4.5
+
+		if ratio &lt; requiredRatio then
+			addFinding(findings, {
+				severity = if ratio &lt; 3 then &quot;high&quot; else &quot;medium&quot;,
+				category = &quot;Color contrast&quot;,
+				title = &quot;Text contrast is below the reference target&quot;,
+				detail = `Measured {Contrast.formatRatio(ratio)} against a {requiredRatio}:1 WCAG-inspired reference target.`,
+				suggestion = &quot;Increase the difference between the text and background colors, then scan again.&quot;,
+				instance = instance,
+				path = path,
+				ratio = ratio,
+			})
+		end
+	elseif textObject.Text ~= &quot;&quot; then
+		addFinding(findings, {
+			severity = &quot;review&quot;,
+			category = &quot;Color contrast&quot;,
+			title = &quot;Contrast needs manual review&quot;,
+			detail = reason or &quot;The effective background color cannot be calculated safely.&quot;,
+			suggestion = &quot;Check this text over every image, gradient, translucent layer, or 3D scene it can appear on.&quot;,
+			instance = instance,
+			path = path,
+			ratio = nil,
+		})
+	end
+end
+
+local function inspectMotionScript(instance: Instance, findings: { Finding })
+	if not instance:IsA(&quot;LuaSourceContainer&quot;) then
+		return
+	end
+
+	local ok, source = pcall(function()
+		return instance.Source
+	end)
+	if not ok then
+		return
+	end
+
+	local sourceText = source :: string
+	local usesTween = string.find(sourceText, &quot;TweenService&quot;, 1, true)
+		or string.find(sourceText, &quot;:TweenPosition&quot;, 1, true)
+		or string.find(sourceText, &quot;:TweenSize&quot;, 1, true)
+	local respectsReducedMotion = string.find(sourceText, &quot;ReducedMotionEnabled&quot;, 1, true)
+
+	if usesTween and not respectsReducedMotion then
+		addFinding(findings, {
+			severity = &quot;review&quot;,
+			category = &quot;Reduced motion&quot;,
+			title = &quot;UI animation may ignore reduced motion&quot;,
+			detail = &quot;This UI script appears to create tweens but does not reference GuiService.ReducedMotionEnabled.&quot;,
+			suggestion = &quot;Consider shortening or skipping non-essential motion when ReducedMotionEnabled is true.&quot;,
+			instance = instance,
+			path = instance:GetFullName(),
+			ratio = nil,
+		})
+	end
+end
+
+local function collect(roots: { Instance }): { Instance }
+	local collected: { Instance } = {}
+	local seen: { [Instance]: boolean } = {}
+
+	local function include(instance: Instance)
+		if seen[instance] then
+			return
+		end
+		seen[instance] = true
+		table.insert(collected, instance)
+	end
+
+	for _, root in roots do
+		include(root)
+		for _, descendant in root:GetDescendants() do
+			include(descendant)
+		end
+	end
+
+	return collected
+end
+
+function Auditor.scan(roots: { Instance }): Report
+	local startedAt = os.clock()
+	local findings: { Finding } = {}
+	local objects = collect(roots)
+	local textObjectsScanned = 0
+
+	for _, instance in objects do
+		if instance:IsA(&quot;TextLabel&quot;) or instance:IsA(&quot;TextButton&quot;) or instance:IsA(&quot;TextBox&quot;) then
+			textObjectsScanned += 1
+			inspectTextObject(instance, findings)
+		end
+		inspectMotionScript(instance, findings)
+	end
+
+	table.sort(findings, function(first, second)
+		local firstRank = severityRank[first.severity]
+		local secondRank = severityRank[second.severity]
+		if firstRank == secondRank then
+			if first.category == second.category then
+				return first.path &lt; second.path
+			end
+			return first.category &lt; second.category
+		end
+		return firstRank &lt; secondRank
+	end)
+
+	return {
+		findings = findings,
+		objectsScanned = #objects,
+		textObjectsScanned = textObjectsScanned,
+		durationSeconds = os.clock() - startedAt,
+	}
+end
+
+return Auditor
+</ProtectedString>
+      </Properties>
+    </Item>
+    <Item class="ModuleScript">
+      <Properties>
+        <string name="Name">Theme</string>
+        <ProtectedString name="Source">--!strict
+
+return {
+	Background = Color3.fromRGB(16, 18, 23),
+	Surface = Color3.fromRGB(25, 29, 37),
+	SurfaceHover = Color3.fromRGB(31, 36, 46),
+	Border = Color3.fromRGB(48, 55, 69),
+	Text = Color3.fromRGB(239, 242, 247),
+	Muted = Color3.fromRGB(154, 163, 179),
+	Accent = Color3.fromRGB(120, 92, 255),
+	Pass = Color3.fromRGB(67, 201, 142),
+	High = Color3.fromRGB(255, 94, 105),
+	Medium = Color3.fromRGB(255, 184, 77),
+	Review = Color3.fromRGB(91, 171, 255),
+}
+</ProtectedString>
+      </Properties>
+    </Item>
+    <Item class="Script">
+      <Properties>
+        <string name="Name">Main</string>
+        <ProtectedString name="Source">--!strict
+
+local Selection = game:GetService(&quot;Selection&quot;)
+local StarterGui = game:GetService(&quot;StarterGui&quot;)
+
+local Auditor = require(script.Parent.Auditor)
+local Theme = require(script.Parent.Theme)
+
+local AUTHOR = &quot;KSAGlory&quot;
+local COMMUNITY = &quot;discord.gg/ksahub&quot;
+
+local toolbar = plugin:CreateToolbar(&quot;KSA Resources&quot;)
+local toolbarButton = toolbar:CreateButton(
+	&quot;KSA Accessibility Preflight&quot;,
+	&quot;Review Roblox UI accessibility before publishing&quot;,
+	&quot;rbxassetid://4458901886&quot;
+)
+toolbarButton.ClickableWhenViewportHidden = true
+
+local widgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Right,
+	false,
+	false,
+	410,
+	620,
+	350,
+	420
+)
+
+local widget = plugin:CreateDockWidgetPluginGui(&quot;KSAA11yPreflight_v1&quot;, widgetInfo)
+widget.Title = &quot;KSA Accessibility Preflight&quot;
+widget.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local function create(className: string, properties: { [string]: any }, parent: Instance?): Instance
+	local instance = Instance.new(className)
+	for key, value in properties do
+		(instance :: any)[key] = value
+	end
+	instance.Parent = parent
+	return instance
+end
+
+local function addCorner(parent: Instance, radius: number)
+	create(&quot;UICorner&quot;, { CornerRadius = UDim.new(0, radius) }, parent)
+end
+
+local function addStroke(parent: Instance, color: Color3?, transparency: number?)
+	create(&quot;UIStroke&quot;, {
+		Color = color or Theme.Border,
+		Transparency = transparency or 0,
+		Thickness = 1,
+	}, parent)
+end
+
+local root = create(&quot;Frame&quot;, {
+	Name = &quot;Root&quot;,
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Theme.Background,
+	BorderSizePixel = 0,
+}, widget) :: Frame
+
+create(&quot;UIPadding&quot;, {
+	PaddingTop = UDim.new(0, 16),
+	PaddingRight = UDim.new(0, 16),
+	PaddingBottom = UDim.new(0, 14),
+	PaddingLeft = UDim.new(0, 16),
+}, root)
+
+local header = create(&quot;Frame&quot;, {
+	Name = &quot;Header&quot;,
+	Size = UDim2.new(1, 0, 0, 60),
+	BackgroundTransparency = 1,
+}, root) :: Frame
+
+local brandMark = create(&quot;Frame&quot;, {
+	Size = UDim2.fromOffset(44, 44),
+	Position = UDim2.fromOffset(0, 2),
+	BackgroundColor3 = Theme.Accent,
+	BorderSizePixel = 0,
+}, header)
+addCorner(brandMark, 11)
+
+create(&quot;TextLabel&quot;, {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = &quot;KSA&quot;,
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 14,
+}, brandMark)
+
+create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromOffset(56, 0),
+	Size = UDim2.new(1, -56, 0, 25),
+	BackgroundTransparency = 1,
+	Text = &quot;Accessibility Preflight&quot;,
+	TextColor3 = Theme.Text,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBold,
+	TextSize = 17,
+}, header)
+
+create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromOffset(56, 26),
+	Size = UDim2.new(1, -56, 0, 18),
+	BackgroundTransparency = 1,
+	Text = &quot;Catch UI barriers before your players do.&quot;,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.Gotham,
+	TextSize = 11,
+}, header)
+
+local intro = create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromOffset(0, 68),
+	Size = UDim2.new(1, 0, 0, 44),
+	BackgroundTransparency = 1,
+	Text = &quot;Scans contrast, text scaling, small text, and reduced-motion support. Nothing is changed automatically.&quot;,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+	TextWrapped = true,
+	Font = Enum.Font.Gotham,
+	TextSize = 11,
+}, root) :: TextLabel
+
+local actions = create(&quot;Frame&quot;, {
+	Position = UDim2.fromOffset(0, 120),
+	Size = UDim2.new(1, 0, 0, 42),
+	BackgroundTransparency = 1,
+}, root) :: Frame
+
+create(&quot;UIListLayout&quot;, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, actions)
+
+local function makeActionButton(text: string, primary: boolean, layoutOrder: number): TextButton
+	local button = create(&quot;TextButton&quot;, {
+		LayoutOrder = layoutOrder,
+		Size = UDim2.new(0.5, -4, 1, 0),
+		BackgroundColor3 = if primary then Theme.Accent else Theme.Surface,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = text,
+		TextColor3 = Theme.Text,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 12,
+	}, actions) :: TextButton
+	addCorner(button, 8)
+	if not primary then
+		addStroke(button)
+	end
+
+	button.MouseEnter:Connect(function()
+		button.BackgroundColor3 = if primary then Theme.Accent:Lerp(Color3.new(1, 1, 1), 0.08) else Theme.SurfaceHover
+	end)
+	button.MouseLeave:Connect(function()
+		button.BackgroundColor3 = if primary then Theme.Accent else Theme.Surface
+	end)
+
+	return button
+end
+
+local scanSelectionButton = makeActionButton(&quot;Scan selection&quot;, true, 1)
+local scanStarterGuiButton = makeActionButton(&quot;Scan StarterGui&quot;, false, 2)
+
+local summary = create(&quot;Frame&quot;, {
+	Position = UDim2.fromOffset(0, 174),
+	Size = UDim2.new(1, 0, 0, 66),
+	BackgroundColor3 = Theme.Surface,
+	BorderSizePixel = 0,
+}, root) :: Frame
+addCorner(summary, 9)
+addStroke(summary)
+
+local statusDot = create(&quot;Frame&quot;, {
+	Position = UDim2.fromOffset(14, 18),
+	Size = UDim2.fromOffset(10, 10),
+	BackgroundColor3 = Theme.Muted,
+	BorderSizePixel = 0,
+}, summary) :: Frame
+addCorner(statusDot, 5)
+
+local statusLabel = create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromOffset(34, 10),
+	Size = UDim2.new(1, -46, 0, 20),
+	BackgroundTransparency = 1,
+	Text = &quot;Ready for a preflight scan&quot;,
+	TextColor3 = Theme.Text,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamMedium,
+	TextSize = 12,
+}, summary) :: TextLabel
+
+local metaLabel = create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromOffset(34, 33),
+	Size = UDim2.new(1, -46, 0, 18),
+	BackgroundTransparency = 1,
+	Text = &quot;Select a ScreenGui, frame, or group of UI objects.&quot;,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	Font = Enum.Font.Gotham,
+	TextSize = 10,
+}, summary) :: TextLabel
+
+local findingsHeader = create(&quot;Frame&quot;, {
+	Position = UDim2.fromOffset(0, 252),
+	Size = UDim2.new(1, 0, 0, 24),
+	BackgroundTransparency = 1,
+}, root) :: Frame
+
+local findingsTitle = create(&quot;TextLabel&quot;, {
+	Size = UDim2.new(0.5, 0, 1, 0),
+	BackgroundTransparency = 1,
+	Text = &quot;FINDINGS&quot;,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Font = Enum.Font.GothamBold,
+	TextSize = 10,
+}, findingsHeader) :: TextLabel
+
+local countsLabel = create(&quot;TextLabel&quot;, {
+	Position = UDim2.fromScale(0.5, 0),
+	Size = UDim2.new(0.5, 0, 1, 0),
+	BackgroundTransparency = 1,
+	Text = &quot;&quot;,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	Font = Enum.Font.Gotham,
+	TextSize = 10,
+}, findingsHeader) :: TextLabel
+
+local results = create(&quot;ScrollingFrame&quot;, {
+	Position = UDim2.fromOffset(0, 282),
+	Size = UDim2.new(1, 0, 1, -312),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = Theme.Border,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.new(),
+}, root) :: ScrollingFrame
+
+local resultsLayout = create(&quot;UIListLayout&quot;, {
+	Padding = UDim.new(0, 8),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+}, results) :: UIListLayout
+
+create(&quot;TextLabel&quot;, {
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 0, 1, 0),
+	Size = UDim2.new(1, 0, 0, 22),
+	BackgroundTransparency = 1,
+	Text = `Free resource by {AUTHOR}  ·  {COMMUNITY}`,
+	TextColor3 = Theme.Muted,
+	TextXAlignment = Enum.TextXAlignment.Center,
+	Font = Enum.Font.Gotham,
+	TextSize = 9,
+}, root)
+
+local function showEmptyState(text: string, color: Color3?)
+	create(&quot;TextLabel&quot;, {
+		Name = &quot;EmptyState&quot;,
+		Size = UDim2.new(1, -6, 0, 110),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = color or Theme.Muted,
+		Font = Enum.Font.Gotham,
+		TextSize = 11,
+		TextWrapped = true,
+	}, results)
+end
+
+showEmptyState(&quot;Run a scan to review your interface.\nFindings are guidance, not accessibility certification.&quot;)
+
+local severityColors = {
+	high = Theme.High,
+	medium = Theme.Medium,
+	review = Theme.Review,
+}
+
+local function clearResults()
+	for _, child in results:GetChildren() do
+		if child ~= resultsLayout then
+			child:Destroy()
+		end
+	end
+end
+
+local function addFindingCard(finding: Auditor.Finding, layoutOrder: number)
+	local color = severityColors[finding.severity]
+	local card = create(&quot;TextButton&quot;, {
+		LayoutOrder = layoutOrder,
+		Size = UDim2.new(1, -6, 0, 142),
+		BackgroundColor3 = Theme.Surface,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = &quot;&quot;,
+	}, results) :: TextButton
+	addCorner(card, 9)
+	addStroke(card)
+
+	local indicator = create(&quot;Frame&quot;, {
+		Size = UDim2.fromOffset(4, 142),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+	}, card)
+	addCorner(indicator, 9)
+
+	create(&quot;TextLabel&quot;, {
+		Position = UDim2.fromOffset(14, 9),
+		Size = UDim2.new(1, -27, 0, 17),
+		BackgroundTransparency = 1,
+		Text = string.upper(finding.severity) .. &quot;  ·  &quot; .. finding.category,
+		TextColor3 = color,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Font = Enum.Font.GothamBold,
+		TextSize = 10,
+	}, card)
+
+	create(&quot;TextLabel&quot;, {
+		Position = UDim2.fromOffset(14, 29),
+		Size = UDim2.new(1, -27, 0, 19),
+		BackgroundTransparency = 1,
+		Text = finding.title,
+		TextColor3 = Theme.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Font = Enum.Font.GothamMedium,
+		TextSize = 11,
+	}, card)
+
+	create(&quot;TextLabel&quot;, {
+		Position = UDim2.fromOffset(14, 50),
+		Size = UDim2.new(1, -27, 0, 18),
+		BackgroundTransparency = 1,
+		Text = finding.path,
+		TextColor3 = Theme.Muted,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Font = Enum.Font.Code,
+		TextSize = 10,
+	}, card)
+
+	create(&quot;TextLabel&quot;, {
+		Position = UDim2.fromOffset(14, 72),
+		Size = UDim2.new(1, -27, 0, 34),
+		BackgroundTransparency = 1,
+		Text = finding.detail,
+		TextColor3 = Theme.Muted,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextWrapped = true,
+		Font = Enum.Font.Gotham,
+		TextSize = 10,
+	}, card)
+
+	create(&quot;TextLabel&quot;, {
+		Position = UDim2.fromOffset(14, 111),
+		Size = UDim2.new(1, -112, 0, 22),
+		BackgroundTransparency = 1,
+		Text = finding.suggestion,
+		TextColor3 = Theme.Text,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Font = Enum.Font.Gotham,
+		TextSize = 9,
+	}, card)
+
+	create(&quot;TextLabel&quot;, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -12, 1, -10),
+		Size = UDim2.fromOffset(88, 15),
+		BackgroundTransparency = 1,
+		Text = &quot;SELECT  →&quot;,
+		TextColor3 = Theme.Muted,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Font = Enum.Font.GothamBold,
+		TextSize = 9,
+	}, card)
+
+	card.MouseEnter:Connect(function()
+		card.BackgroundColor3 = Theme.SurfaceHover
+	end)
+	card.MouseLeave:Connect(function()
+		card.BackgroundColor3 = Theme.Surface
+	end)
+	card.Activated:Connect(function()
+		if finding.instance.Parent ~= nil then
+			Selection:Set({ finding.instance })
+		end
+	end)
+end
+
+local scanning = false
+
+local function runScan(roots: { Instance }, scopeName: string)
+	if scanning then
+		return
+	end
+
+	scanning = true
+	statusDot.BackgroundColor3 = Theme.Accent
+	statusLabel.Text = &quot;Scanning &quot; .. scopeName .. &quot;…&quot;
+	metaLabel.Text = &quot;Reviewing UI objects and related scripts&quot;
+
+	task.defer(function()
+		local report = Auditor.scan(roots)
+		clearResults()
+
+		local highCount = 0
+		local mediumCount = 0
+		local reviewCount = 0
+
+		for index, finding in report.findings do
+			if finding.severity == &quot;high&quot; then
+				highCount += 1
+			elseif finding.severity == &quot;medium&quot; then
+				mediumCount += 1
+			else
+				reviewCount += 1
+			end
+			addFindingCard(finding, index)
+		end
+
+		if #report.findings == 0 then
+			showEmptyState(
+				&quot;No automatic warnings found.\nManually test images, audio cues, keyboard navigation, and real devices.&quot;,
+				Theme.Pass
+			)
+		end
+
+		statusDot.BackgroundColor3 = if highCount &gt; 0 then Theme.High else Theme.Pass
+		statusLabel.Text = if #report.findings == 0
+			then &quot;Automatic checks passed&quot;
+			else `{#report.findings} finding(s) need attention`
+		metaLabel.Text = `{report.textObjectsScanned} text objects · {report.objectsScanned} total · {report.durationSeconds * 1000 // 1} ms`
+		findingsTitle.Text = `FINDINGS  ·  {#report.findings}`
+		countsLabel.Text = `{highCount} high  ·  {mediumCount} medium  ·  {reviewCount} review`
+		scanning = false
+	end)
+end
+
+scanSelectionButton.Activated:Connect(function()
+	local selected = Selection:Get()
+	if #selected == 0 then
+		statusDot.BackgroundColor3 = Theme.Medium
+		statusLabel.Text = &quot;Nothing selected&quot;
+		metaLabel.Text = &quot;Select a ScreenGui, frame, or UI object in Explorer.&quot;
+		return
+	end
+
+	runScan(selected, &quot;selection&quot;)
+end)
+
+scanStarterGuiButton.Activated:Connect(function()
+	runScan({ StarterGui }, &quot;StarterGui&quot;)
+end)
+
+toolbarButton.Click:Connect(function()
+	widget.Enabled = not widget.Enabled
+end)
+
+widget:GetPropertyChangedSignal(&quot;Enabled&quot;):Connect(function()
+	toolbarButton:SetActive(widget.Enabled)
+end)
+</ProtectedString>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>
