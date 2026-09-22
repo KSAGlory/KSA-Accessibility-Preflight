@@ -1,11 +1,29 @@
-# Security and Privacy
+# Security policy
 
-KSA Accessibility Preflight performs all analysis locally inside Roblox Studio.
+## Supported version
 
-The plugin does not make HTTP requests, collect analytics, require an account, read Roblox credentials, or send UI and script source anywhere. It reads only the instances included in the selected scan scope and never modifies them.
+Security fixes target the latest official release. Include the affected version or commit when reporting a problem.
 
-## Reporting a problem
+## Reporting a vulnerability
 
-Please report security or privacy concerns privately through the KSA community at [discord.gg/ksahub](https://discord.gg/ksahub) before posting technical details publicly.
+Use [GitHub private vulnerability reporting](https://github.com/KSAGlory/KSA-Accessibility-Preflight/security/advisories/new). Do not disclose an unreported vulnerability in a public issue or pull request.
 
-Include the plugin version, Roblox Studio version, a description of the issue, and the smallest safe reproduction you can provide. Never include account cookies, authentication tokens, private place files, or personal information.
+Include:
+
+- The affected version or commit
+- A clear description of the problem
+- Minimal reproduction steps
+- The potential impact
+- A suggested fix, if you have one
+
+Do not include passwords, tokens, private documents, or unrelated personal information. Use a non-confidential example whenever possible.
+
+## Project-specific guidance
+
+The plugin analyzes the selected Studio instances locally and does not intentionally send UI or script contents over the network or modify scanned objects. Reports about unintended data access, network activity, or changes to user work are in scope. Include the Roblox Studio version and scan option.
+
+## Disclosure
+
+Allow time for investigation and a fix before publishing technical details. The maintainer will coordinate disclosure through the private report.
+
+For installation help, usage questions, and ordinary bug reports, use [GitHub Issues](https://github.com/KSAGlory/KSA-Accessibility-Preflight/issues).

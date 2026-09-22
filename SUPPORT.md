@@ -1,33 +1,30 @@
 # Support
 
-For usage questions or installation help, join [discord.gg/ksahub](https://discord.gg/ksahub).
-
 ## Before requesting help
 
-Please check the following:
+Use the latest official release. Confirm that the plugin was saved as a local plugin and appears under KSA Resources. For Scan selection, select a supported interface object in Explorer first.
 
-1. You are using the latest official release.
-2. The plugin was saved as a local plugin and appears under **KSA Resources**.
-3. You selected a `ScreenGui`, frame, or UI object before using **Scan selection**.
-4. The issue still occurs after reopening Roblox Studio.
+## Questions and bug reports
 
-## Bug reports
+Use [GitHub Issues](https://github.com/KSAGlory/KSA-Accessibility-Preflight/issues) for installation help, usage questions, and reproducible problems. Search existing issues first and include:
 
-Report reproducible problems through [GitHub Issues](https://github.com/KSAGlory/KSA-Accessibility-Preflight/issues).
+- The application or plugin version, or the commit you tested
+- Your operating system and version
+- Your Roblox Studio version, scan option, and affected interface object
+- Steps to reproduce the problem
+- What you expected and what happened instead
+- Relevant screenshots or logs with private information removed
 
-## Useful report details
+## Feature requests
 
-Include:
+Describe the problem you want to solve and how the proposed change would help. Keep each request focused on one improvement.
 
-- KSA Accessibility Preflight version
-- Roblox Studio version
-- Operating system
-- The scan option you used
-- The expected and actual behavior
-- A screenshot or minimal reproduction when it contains no private information
+Support covers plugin behavior and explanations of its findings. A scan does not certify an experience as accessible or replace testing with players, devices, and different input methods.
 
-Do not send Roblox cookies, passwords, authentication tokens, private place files, or personal information.
+## Privacy
 
-## Scope of support
+Do not upload passwords, tokens, private documents, confidential paths, or unrelated personal information. Use a small, non-confidential example when possible.
 
-The project can explain its findings and correct confirmed plugin bugs. It cannot certify an experience as accessible or replace testing with disabled players, real devices, and different input methods.
+## Security reports
+
+Do not post undisclosed vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md) for private reporting.

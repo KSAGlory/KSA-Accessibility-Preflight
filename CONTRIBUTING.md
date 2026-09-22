@@ -1,6 +1,6 @@
 # Contributing to KSA Accessibility Preflight
 
-Thank you for helping improve KSA Accessibility Preflight. The project is maintained as a free resource for the Roblox community.
+Contributions should make the plugin easier to use, improve its checks, or clarify its limitations.
 
 ## Before proposing a change
 

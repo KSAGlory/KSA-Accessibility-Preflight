@@ -11,5 +11,4 @@ All notable changes to KSA Accessibility Preflight are documented here.
 - Added reduced-motion source checks for UI tween scripts
 - Added click-to-select findings in a dockable Studio widget
 - Added dependency-free `.rbxmx` packaging and verification
-- Added permanent KSAGlory and KSA Hub attribution
-- Confirmed that official releases are free community resources
+- Confirmed that official releases are available at no charge
