@@ -2,13 +2,13 @@
 
 Thank you for helping improve KSA Accessibility Preflight. The project is maintained as a free resource for the Roblox community.
 
-## Before Proposing a Change
+## Before proposing a change
 
-Open an issue or discuss the idea through [discord.gg/ksahub](https://discord.gg/ksahub) before making a large change. Small bug fixes and documentation corrections can be submitted directly.
+Open a [GitHub issue](https://github.com/KSAGlory/KSA-Accessibility-Preflight/issues) before making a large change. Small bug fixes and documentation corrections can be submitted directly.
 
 Accessibility checks must be conservative. A warning should explain what was observed without claiming that a person, interface, or experience has failed a formal certification.
 
-## Rule Requirements
+## Rule requirements
 
 Every new automatic check should provide:
 
@@ -20,7 +20,7 @@ Every new automatic check should provide:
 
 Avoid checks based only on personal design preferences. Prefer documented Roblox behavior or established accessibility guidance.
 
-## Development Checks
+## Development checks
 
 Run the package verification script before submitting a change:
 
@@ -28,9 +28,21 @@ Run the package verification script before submitting a change:
 ./scripts/verify.ps1
 ```
 
-If the Luau command-line tools are installed, compile every file in `src` and run `tests/contrast.spec.luau`.
+If the Luau command-line tools are installed, check the source syntax and run the contrast tests from the repository root:
 
-## Code Style
+```powershell
+Get-ChildItem src -Filter *.luau | ForEach-Object {
+    luau-compile $_.FullName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Compilation failed: $($_.Name)"
+    }
+}
+luau tests/contrast.spec.luau
+```
+
+Package verification and contrast tests do not run the Studio interface. Follow [TESTING.md](TESTING.md) to check the installed plugin.
+
+## Code style
 
 - Use strict Luau for source modules.
 - Choose descriptive names over abbreviations.
@@ -39,7 +51,7 @@ If the Luau command-line tools are installed, compile every file in `src` and ru
 - Do not add automatic fixes or destructive behavior without prior discussion.
 - Keep user-facing language direct, respectful, and easy to understand.
 
-## Pull Requests
+## Pull requests
 
 Describe the problem, the behavior before and after the change, and how you verified it. Include screenshots for interface changes when possible. Never include private Roblox places, credentials, user data, or copyrighted assets you do not have permission to share.
 

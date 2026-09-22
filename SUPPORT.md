@@ -1,10 +1,8 @@
 # Support
 
-KSA Accessibility Preflight is maintained by **KSAGlory** as a free resource for the Roblox community.
+For usage questions or installation help, join [discord.gg/ksahub](https://discord.gg/ksahub).
 
-For usage questions, installation help, or bug reports, join [discord.gg/ksahub](https://discord.gg/ksahub).
-
-## Before Requesting Help
+## Before requesting help
 
 Please check the following:
 
@@ -13,7 +11,11 @@ Please check the following:
 3. You selected a `ScreenGui`, frame, or UI object before using **Scan selection**.
 4. The issue still occurs after reopening Roblox Studio.
 
-## Useful Report Details
+## Bug reports
+
+Report reproducible problems through [GitHub Issues](https://github.com/KSAGlory/KSA-Accessibility-Preflight/issues).
+
+## Useful report details
 
 Include:
 
@@ -26,6 +28,6 @@ Include:
 
 Do not send Roblox cookies, passwords, authentication tokens, private place files, or personal information.
 
-## Scope of Support
+## Scope of support
 
 The project can explain its findings and correct confirmed plugin bugs. It cannot certify an experience as accessible or replace testing with disabled players, real devices, and different input methods.
