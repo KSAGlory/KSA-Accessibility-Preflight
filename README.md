@@ -76,13 +76,13 @@ Additional testing information is available in [TESTING.md](TESTING.md).
 
 Bug reports and focused improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
-## License
-
-This project is available under the [MIT License](LICENSE).
-
-## Author and community
+## Author and Community
 
 - Author: **KSAGlory**
 - Community: [discord.gg/ksahub](https://discord.gg/ksahub)
+
+## License
+
+This project is available under the [MIT License](LICENSE).
 
 Copyright © 2026 KSAGlory
