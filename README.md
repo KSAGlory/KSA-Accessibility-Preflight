@@ -1,133 +1,88 @@
 # KSA Accessibility Preflight
 
-KSA Accessibility Preflight is a free and open-source Roblox Studio plugin that reviews user interfaces for common accessibility barriers before an experience is published.
+Review Roblox interfaces for common accessibility problems before players encounter them.
 
-Select a `ScreenGui`, frame, or group of UI objects and run a scan. The plugin explains each finding and selects the affected object when clicked. It never edits or deletes your work.
+KSA Accessibility Preflight is a free, open-source Roblox Studio plugin that scans selected UI or an entire `StarterGui`. It explains each finding, takes you directly to the affected object, and never edits or deletes your work.
 
-> This is a preflight assistant, not accessibility certification. Automatic checks cannot understand every image, gradient, 3D background, interaction, or design decision.
+The plugin is designed as a practical preflight check, not a replacement for testing with real players or assistive technology.
 
-## What It Checks
+## What it checks
 
-- Text/background contrast on opaque, solid-color UI
-- `TextScaled` objects that do not respond to Roblox's preferred text-size setting
-- Text smaller than 14 pixels that deserves testing on mobile and with low vision
-- UI tween scripts that may not respect `GuiService.ReducedMotionEnabled`
-- Image, gradient, translucent, and 3D backgrounds that require manual contrast review
+- Text contrast against simple, solid backgrounds
+- Small text that may be difficult to read
+- `TextScaled` objects that may ignore a player's preferred text size
+- Tween-based motion that may need a reduced-motion alternative
+- Visual situations that need human review, including images, gradients, transparency, and 3D backgrounds
 
-## Why It Exists
+## Download and installation
 
-Roblox gives players accessibility preferences for text size, reduced motion, and background transparency. Roblox also publishes accessibility guidance for creators, but Studio does not currently provide a complete automatic accessibility report for a `ScreenGui`.
+Download the latest `.rbxmx` file from the [Releases page](https://github.com/KSAGlory/KSA-Accessibility-Preflight/releases).
 
-KSA Accessibility Preflight turns part of that manual checklist into a fast, explainable scan. The rules are intentionally small and readable so developers can understand what the plugin can—and cannot—conclude.
+1. Open Roblox Studio and create or open a place.
+2. Drag the downloaded `.rbxmx` file into Studio or insert it through Asset Manager.
+3. In Explorer, right-click the **KSA Accessibility Preflight** folder.
+4. Choose **Save as Local Plugin**.
+5. Open it from the **Plugins** toolbar under **KSA Resources**.
 
-## Install
+## Running a scan
 
-1. Download `dist/KSA-Accessibility-Preflight.rbxmx`.
-2. Open Roblox Studio and create or open a place.
-3. Drag the `.rbxmx` file into Studio or insert it through the Asset Manager.
-4. In Explorer, right-click the **KSA Accessibility Preflight** folder.
-5. Choose **Save as Local Plugin**.
-6. Open it from the **Plugins** toolbar under **KSA Resources**.
+Open the plugin from the Studio toolbar, then choose one of two scan modes:
 
-## Use
+- **Scan selection** checks the UI objects you currently have selected.
+- **Scan StarterGui** checks every supported interface under `StarterGui`.
 
-### Scan a specific interface
+Select a finding to jump directly to the affected object in Explorer.
 
-1. Select a `ScreenGui`, frame, text object, or group of UI objects in Explorer.
-2. Open **KSA Accessibility Preflight**.
-3. Select **Scan selection**.
-4. Review the findings from highest priority to manual review.
-5. Select a finding to highlight the affected object in Explorer.
-
-### Scan all starter interfaces
-
-Open the plugin and select **Scan StarterGui**. The plugin scans everything stored beneath `StarterGui`, including relevant UI scripts.
-
-## Finding Levels
+## Finding levels
 
 | Level | Meaning |
 | --- | --- |
-| High | The automatic measurement found a strong accessibility concern. |
-| Medium | The interface conflicts with a documented Roblox behavior or misses the reference contrast target. |
-| Review | Automation cannot safely decide, or the item should be tested manually. |
+| High | A likely accessibility problem worth fixing first |
+| Medium | A potential problem that should be reviewed |
+| Review | The plugin cannot judge the result reliably and needs a human decision |
 
-## Contrast Method
+## Contrast checks
 
-The plugin uses the standard sRGB relative-luminance formula and WCAG-inspired reference ratios:
+The scanner uses a minimum contrast ratio of `4.5:1` for ordinary text and `3:1` for text with a `TextSize` of at least 24. When the visible background cannot be determined safely, the result is marked for review instead of presenting a guess as a confirmed issue.
 
-- `4.5:1` for ordinary text
-- `3:1` for text at `TextSize` 24 or above
+## Privacy and safety
 
-These are practical reference targets, not a claim that Roblox pixels exactly equal CSS pixels or that passing the calculation guarantees accessibility.
+KSA Accessibility Preflight runs locally inside Roblox Studio.
 
-Contrast is calculated only when the plugin finds an effectively opaque, solid-color `GuiObject` background. Images, gradients, translucent layers, text over the 3D world, and other uncertain cases are marked for manual review rather than given a misleading score.
-
-## Privacy and Safety
-
-- No analytics or telemetry
+- No accounts or sign-in
+- No telemetry or analytics
 - No HTTP requests
-- No accounts or tokens
-- No uploaded UI or script source
-- No automatic fixes, edits, or deletions
-- All analysis happens locally inside Roblox Studio
+- No project uploads
+- No automatic edits or deletions
 
-See [SECURITY.md](SECURITY.md) for responsible reporting and the plugin's data-handling statement.
+Your place and interface content stay on your computer.
 
-## Free Resource
+## Current limitations
 
-KSA Accessibility Preflight is provided free of charge to the Roblox community. Official downloads and source code will never require payment. If someone attempts to sell access to an official build, please report it through the KSA community.
-
-## Author and Community
-
-- Created and maintained by **KSAGlory**
-- Community and support: [discord.gg/ksahub](https://discord.gg/ksahub)
-
-When asking for help, describe what you scanned, include the plugin version, and attach a screenshot of the finding when safe. Do not share private place files, account credentials, or personal information.
+The plugin does not currently verify keyboard or controller navigation, screen-reader behavior, audio alternatives, flashing content, or every possible layered UI combination. Treat the report as an early warning system and include manual accessibility testing in your release process.
 
 ## Development
 
-The repository supports [Rojo](https://rojo.space/):
-
-```sh
-rojo build -o dist/KSA-Accessibility-Preflight.rbxmx
-```
-
-Windows users can build and verify the installable model without dependencies:
+The repository supports Rojo and also includes dependency-free PowerShell scripts for Windows. Build and verify the installable plugin with:
 
 ```powershell
-./scripts/build.ps1
-./scripts/verify.ps1
+powershell -ExecutionPolicy Bypass -File scripts/build.ps1
+powershell -ExecutionPolicy Bypass -File scripts/verify.ps1
 ```
 
-Maintainers can use the included test interface and the steps in [TESTING.md](TESTING.md) to verify all initial rules inside Roblox Studio.
-
-## Project Structure
-
-```text
-src/Contrast.luau       Relative luminance and contrast math
-src/Auditor.luau        Read-only accessibility rules and scan report
-src/Theme.luau          Shared visual tokens
-src/Main.server.luau    Studio widget and Explorer interaction
-scripts/build.ps1       Dependency-free .rbxmx packaging
-scripts/build-test-ui.ps1 Rebuilds the Studio test interface
-scripts/verify.ps1      Package and feature verification
-examples/KSA-Accessibility-Test-UI.rbxmx Known pass and warning examples
-tests/contrast.spec.luau Contrast-math unit tests
-default.project.json    Rojo project definition
-```
-
-## Current Limitations
-
-- Contrast over images, gradients, transparency, and the 3D world requires human review.
-- The plugin does not test keyboard/controller navigation order.
-- It cannot determine whether audio information has an equivalent visual cue.
-- Tween detection is a source-code hint, not proof that motion is inaccessible.
-- Small text is a review signal rather than a universal failure threshold.
+Additional testing information is available in [TESTING.md](TESTING.md).
 
 ## Contributing
 
-Contributions should keep rules explainable, privacy-friendly, and conservative. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
+Bug reports and focused improvements are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## License
 
-[MIT](LICENSE)
+This project is available under the [MIT License](LICENSE).
+
+## Author and community
+
+- Author: **KSAGlory**
+- Community: [discord.gg/ksahub](https://discord.gg/ksahub)
+
+Copyright © 2026 KSAGlory. All rights reserved.
